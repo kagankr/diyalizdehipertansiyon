@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hemodiyaliz İlaç Rehberi</title>
+    <!-- React ve ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel (JSX Derleyicisi) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* Kaydırma çubuğunu gizleme stili */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // --- İKON BİLEŞENLERİ (Lucide Icons SVG) ---
+        const Activity = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        );
+        const AlertTriangle = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        );
+        const Clock = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        );
+        const Info = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        );
+        const CheckCircle2 = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        );
+        const Search = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        );
+        const Filter = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        );
+
+        // --- VERİ TABANI ---
+        const drugDatabase = [
+            // 1. ACE İNHİBİTÖRLERİ (MONOTERAPİ)
+            {
+                id: 'ace-enalapril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Enalapril',
+                brands: 'Enapril, Konveril, Vasolapril',
+                doses: '5, 10, 20 mg',
+                bio: '~%60',
+                activeMetabolite: 'Var (Enalaprilat)',
+                halfLife: '11 saat',
+                dialysis: 'EVET',
+                maxDose: '10 mg',
+                strategy: 'Diyaliz Sonrası. Seans bitiminde verilir. Başlangıç dozu 2.5 mg.',
+                warning: null
+            },
+            {
+                id: 'ace-lisinopril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Lisinopril',
+                brands: 'Rilace, Sinopryl, Acerilin',
+                doses: '5, 10, 20 mg',
+                bio: '~%25',
+                activeMetabolite: 'Yok (Aktif İlaç)',
+                halfLife: '12 saat',
+                dialysis: 'EVET',
+                maxDose: '40 mg',
+                strategy: 'Diyaliz Sonrası. Karaciğer aktivasyonuna ihtiyaç duymaz. KC yetmezliğinde tercih edilir.',
+                warning: null
+            },
+            {
+                id: 'ace-ramipril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Ramipril',
+                brands: 'Delix, Blokace, Ramicard',
+                doses: '2.5, 5, 10 mg',
+                bio: '~%28',
+                activeMetabolite: 'Var (Ramiprilat)',
+                halfLife: '13-17 saat',
+                dialysis: 'EVET',
+                maxDose: '5 mg',
+                strategy: 'Diyaliz Sonrası. 1.25 mg veya 2.5 mg yarısı ile başlanmalıdır.',
+                warning: null
+            },
+            {
+                id: 'ace-perindopril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Perindopril',
+                brands: 'Coversyl, Prexarel, Pesar',
+                doses: '2.5, 5, 10 mg (Arginin)',
+                bio: '~%70',
+                activeMetabolite: 'Var (Perindoprilat)',
+                halfLife: '>25 saat',
+                dialysis: 'EVET',
+                maxDose: '5 mg (Arginin)',
+                strategy: 'Diyaliz Sonrası. Yarılanma ömrü uzundur, birikim yapabilir.',
+                warning: 'Tuz formuna dikkat: 5 mg Arginin ≈ 4 mg Erbumin.'
+            },
+            {
+                id: 'ace-fosinopril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Fosinopril',
+                brands: 'Monopril',
+                doses: '10, 20 mg',
+                bio: '~%36',
+                activeMetabolite: 'Var (Fosinoprilat)',
+                halfLife: '11-12 saat',
+                dialysis: 'HAYIR',
+                maxDose: '40 mg',
+                strategy: 'Fark Etmez (Akşam). Karaciğerden atıldığı için doz kısıtlaması olmayan tek ajandır.',
+                warning: 'Diyaliz hastasında doz ayarlaması gerekmeyen tek ACEi.'
+            },
+            {
+                id: 'ace-trandolapril',
+                group: 'ACE İnhibitörleri',
+                ingredient: 'Trandolapril',
+                brands: 'Gopten',
+                doses: '0.5, 2, 4 mg',
+                bio: '~%10',
+                activeMetabolite: 'Var (Trandolaprilat)',
+                halfLife: '16-24 saat',
+                dialysis: 'EVET',
+                maxDose: '0.5 mg',
+                strategy: 'Diyaliz Sonrası. Normal dozun yarısı önerilir.',
+                warning: null
+            },
+
+            // 2. KOMBİNASYONLAR (ACEi + KKB)
+            {
+                id: 'combo-perindopril-amlo',
+                group: 'Kombinasyonlar (ACE+KKB)',
+                ingredient: 'Perindopril + Amlodipin',
+                brands: 'Coveram, Pesar Combo',
+                doses: '5/5, 5/10, 10/5, 10/10 mg',
+                bio: '%64-80 (Amlo)',
+                activeMetabolite: 'Perindopril: Var',
+                halfLife: '35-50 saat (Amlo)',
+                dialysis: 'KISMEN',
+                maxDose: '5/10 mg',
+                strategy: 'Diyaliz Sonrası. Amlodipin atılmaz ama Perindopril atılır. Seans sonrası alınmalı.',
+                warning: 'Plus/Diüretikli formları diyaliz hastasında etkisizdir, Duo/Combo tercih edin.'
+            },
+            {
+                id: 'combo-ramipril-amlo',
+                group: 'Kombinasyonlar (ACE+KKB)',
+                ingredient: 'Ramipril + Amlodipin',
+                brands: 'Delix Duo, Ramicard Duo',
+                doses: '2.5/2.5, 5/5, 5/10 mg',
+                bio: '%64-80 (Amlo)',
+                activeMetabolite: 'Ramipril: Var',
+                halfLife: '35-50 saat (Amlo)',
+                dialysis: 'KISMEN',
+                maxDose: '5/10 mg',
+                strategy: 'Diyaliz Sonrası. 2.5/2.5 mg güvenli başlangıçtır.',
+                warning: 'Plus/Diüretikli formları diyaliz hastasında etkisizdir.'
+            },
+
+            // 3. KALSİYUM KANAL BLOKERLERİ
+            {
+                id: 'kkb-amlodipin',
+                group: 'Kalsiyum Kanal Blokerleri',
+                ingredient: 'Amlodipin',
+                brands: 'Norvasc, Amlodis, Vasocard',
+                doses: '5, 10 mg',
+                bio: '%64-80',
+                activeMetabolite: 'Yok',
+                halfLife: '35-50 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '10 mg',
+                strategy: 'Fark Etmez. Diyalizden etkilenmez. Hipotansiyon varsa gece verilir.',
+                warning: null
+            },
+            {
+                id: 'kkb-lercanidipin',
+                group: 'Kalsiyum Kanal Blokerleri',
+                ingredient: 'Lerkanidipin',
+                brands: 'Lercadip',
+                doses: '10, 20 mg',
+                bio: '~%10',
+                activeMetabolite: 'Yok',
+                halfLife: '8-10 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '20 mg',
+                strategy: 'Fark Etmez / Akşam. Oldukça lipofiliktir.',
+                warning: 'Tok karnına emilimi artar.'
+            },
+            {
+                id: 'kkb-nifedipin',
+                group: 'Kalsiyum Kanal Blokerleri',
+                ingredient: 'Nifedipin',
+                brands: 'Adalat Chrono, Nidilat',
+                doses: '30, 60 mg',
+                bio: '~%50-70',
+                activeMetabolite: 'Yok',
+                halfLife: '2-5 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '60 mg',
+                strategy: 'Diyaliz Sonrası. Hızlı tansiyon düşüşü yapabilir, seans sabahı önerilmez.',
+                warning: null
+            },
+            {
+                id: 'kkb-diltiazem',
+                group: 'Kalsiyum Kanal Blokerleri',
+                ingredient: 'Diltiazem',
+                brands: 'Diltizem, Altizem',
+                doses: '30, 60, 90, 240 mg',
+                bio: '~%40',
+                activeMetabolite: 'Var',
+                halfLife: '3-4.5 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '240-360 mg',
+                strategy: 'Fark Etmez. Hız kontrolü için kullanılır.',
+                warning: null
+            },
+
+            // 4. BETA BLOKERLER
+            {
+                id: 'bb-metoprolol',
+                group: 'Beta Blokerler',
+                ingredient: 'Metoprolol',
+                brands: 'Beloc, Saneloc, Problok',
+                doses: '25, 50, 100 mg',
+                bio: '~%50',
+                activeMetabolite: 'Yok',
+                halfLife: '3-7 Saat',
+                dialysis: 'EVET',
+                maxDose: '100-200 mg',
+                strategy: 'Diyaliz Sonrası. İlaç diyalizle çekildiği için seans sırasında etkisi kaybolur.',
+                warning: 'Seans sırasında taşikardi gelişebilir.'
+            },
+            {
+                id: 'bb-carvedilol',
+                group: 'Beta Blokerler',
+                ingredient: 'Karvedilol',
+                brands: 'Dilatrend, Carvexal',
+                doses: '3.125, 6.25, 12.5, 25 mg',
+                bio: '~%25',
+                activeMetabolite: 'Yok',
+                halfLife: '7-10 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '50 mg',
+                strategy: 'Fark Etmez / Tok Karnına. Kalp yetmezliğinde altın standarttır.',
+                warning: 'Diyalizle atılmaz, doz koruması tamdır.'
+            },
+            {
+                id: 'bb-nebivolol',
+                group: 'Beta Blokerler',
+                ingredient: 'Nebivolol',
+                brands: 'Vasoxen, Nexivol',
+                doses: '5, 10 mg',
+                bio: 'Değişken',
+                activeMetabolite: 'Var',
+                halfLife: '10-30 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '10 mg',
+                strategy: 'Fark Etmez. Günde tek doz kullanımı kolaydır.',
+                warning: null
+            },
+            {
+                id: 'bb-bisoprolol',
+                group: 'Beta Blokerler',
+                ingredient: 'Bisoprolol',
+                brands: 'Concor, Biso',
+                doses: '5, 10 mg',
+                bio: '~%90',
+                activeMetabolite: 'Yok',
+                halfLife: '10-12 Saat',
+                dialysis: 'KISMEN',
+                maxDose: '10 mg',
+                strategy: 'Diyaliz Sonrası. Kısmen atılsa da seans sonrası verilmesi güvenlidir.',
+                warning: null
+            },
+            {
+                id: 'bb-atenolol',
+                group: 'Beta Blokerler',
+                ingredient: 'Atenolol',
+                brands: 'Tensinor, Nortan',
+                doses: '50, 100 mg',
+                bio: '~%50',
+                activeMetabolite: 'Yok',
+                halfLife: 'BY\'de >100 saat',
+                dialysis: 'EVET (Yüksek)',
+                maxDose: '50 mg',
+                strategy: 'Diyaliz Sonrası. Ara günlerde toksik birikim yapar.',
+                warning: 'Diyaliz hastalarında tercih EDİLMEZ (Birikim riski).'
+            },
+
+            // 5. ALFA ve SANTRAL
+            {
+                id: 'alpha-doksazosin',
+                group: 'Alfa/Santral Etkililer',
+                ingredient: 'Doksazosin',
+                brands: 'Cardura, Cardura XL',
+                doses: '2, 4, 8 mg',
+                bio: '-',
+                activeMetabolite: '-',
+                halfLife: '22 Saat',
+                dialysis: 'HAYIR',
+                maxDose: '8-16 mg',
+                strategy: 'GECE YATARKEN. Asla sabah verilmemelidir.',
+                warning: 'Şiddetli postural hipotansiyon yapar. Seans sabahı içilirse hasta bayılabilir.'
+            },
+            {
+                id: 'alpha-moksonidin',
+                group: 'Alfa/Santral Etkililer',
+                ingredient: 'Moksonidin',
+                brands: 'Physiotens, Moksilen',
+                doses: '0.2, 0.3, 0.4 mg',
+                bio: '-',
+                activeMetabolite: '-',
+                halfLife: 'BY\'de uzar',
+                dialysis: 'KISMEN',
+                maxDose: '0.6 mg',
+                strategy: 'Diyaliz Sonrası. Böbrek yetmezliğinde birikim riski vardır.',
+                warning: null
+            },
+            {
+                id: 'alpha-rilmenidin',
+                group: 'Alfa/Santral Etkililer',
+                ingredient: 'Rilmenidin',
+                brands: 'Hyperium',
+                doses: '1 mg',
+                bio: '-',
+                activeMetabolite: '-',
+                halfLife: '8 Saat',
+                dialysis: 'KISMEN',
+                maxDose: '2 mg',
+                strategy: 'Diyaliz Sonrası. Diyalizle az miktarda temizlenir. Genellikle sabah/akşam 1\'er tablet verilir.',
+                warning: null
+            },
+            {
+                id: 'alpha-metildopa',
+                group: 'Alfa/Santral Etkililer',
+                ingredient: 'Metildopa',
+                brands: 'Alfamet',
+                doses: '250 mg',
+                bio: '-',
+                activeMetabolite: '-',
+                halfLife: '1.5-2 Saat',
+                dialysis: 'EVET (%60)',
+                maxDose: '1000 mg',
+                strategy: 'Diyaliz Sonrası. Çok hızlı temizlenir, tansiyon fırlayabilir.',
+                warning: 'Rebound hipertansiyon riski yüksektir.'
+            }
+        ];
+
+        const categories = [
+            'Tümü',
+            'ACE İnhibitörleri',
+            'Kombinasyonlar (ACE+KKB)',
+            'Kalsiyum Kanal Blokerleri',
+            'Beta Blokerler',
+            'Alfa/Santral Etkililer'
+        ];
+
+        function App() {
+            const [activeCategory, setActiveCategory] = useState('ACE İnhibitörleri');
+            const [selectedDrugIds, setSelectedDrugIds] = useState([]);
+            const [searchTerm, setSearchTerm] = useState('');
+
+            // Filtering Logic
+            const filteredDrugs = useMemo(() => {
+                let list = drugDatabase;
+
+                // 1. Filter by Category
+                if (activeCategory !== 'Tümü') {
+                    list = list.filter(d => d.group === activeCategory);
+                }
+
+                // 2. Filter by Search
+                if (searchTerm) {
+                    const lower = searchTerm.toLowerCase();
+                    list = list.filter(d => 
+                        d.ingredient.toLowerCase().includes(lower) || 
+                        d.brands.toLowerCase().includes(lower)
+                    );
+                }
+
+                return list;
+            }, [activeCategory, searchTerm]);
+
+            // Toggle Selection Logic
+            const toggleDrug = (id) => {
+                setSelectedDrugIds(prev => {
+                    if (prev.includes(id)) {
+                        return prev.filter(item => item !== id);
+                    } else {
+                        return [...prev, id];
+                    }
+                });
+            };
+
+            // Helper for Badge Color
+            const getDialysisBadge = (status) => {
+                if (status.includes('EVET')) return 'bg-red-100 text-red-800 border-red-200';
+                if (status.includes('HAYIR')) return 'bg-green-100 text-green-800 border-green-200';
+                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            };
+
+            // KULLANICI İSTEĞİ: displayList artık selectedDrugIds'e göre filtrelenmiyor.
+            // Sadece kategori ve arama kriterlerine göre filtrelenmiş liste gösteriliyor.
+            const displayList = filteredDrugs;
+
+            return (
+                <div className="min-h-screen font-sans text-slate-800 p-4 md:p-8">
+                
+                {/* HEADER */}
+                <div className="max-w-6xl mx-auto mb-8 text-center">
+                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 flex items-center justify-center gap-3">
+                    <Activity className="w-8 h-8 text-blue-600" />
+                    Hemodiyaliz İlaç Rehberi
+                    </h1>
+                    <p className="text-slate-600 max-w-2xl mx-auto">
+                    Hemodiyaliz hastalarında antihipertansif ilaçların doz yönetimi, diyalizabilitesi ve piyasa isimleri için interaktif rehber.
+                    </p>
+                </div>
+
+                {/* CONTROLS CONTAINER */}
+                <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                    
+                    {/* Category Tabs */}
+                    <div className="flex overflow-x-auto bg-slate-100 border-b border-slate-200 no-scrollbar">
+                    {categories.map(cat => (
+                        <button
+                        key={cat}
+                        onClick={() => { setActiveCategory(cat); setSelectedDrugIds([]); }}
+                        className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                            activeCategory === cat 
+                            ? 'border-blue-600 text-blue-700 bg-white' 
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                        }`}
+                        >
+                        {cat}
+                        </button>
+                    ))}
+                    </div>
+
+                    {/* Search & Filter Bar */}
+                    <div className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="relative w-full md:w-96">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                            <Search className="w-4 h-4" />
+                        </span>
+                        <input 
+                        type="text" 
+                        placeholder="Etken madde veya marka ara..." 
+                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    
+                    <div className="text-sm text-slate-500 flex items-center gap-2">
+                        <Filter className="w-4 h-4" />
+                        {displayList.length} ilaç listeleniyor
+                    </div>
+                    </div>
+
+                    {/* Quick Select Chips (Visible Drugs) */}
+                    <div className="px-4 pb-4 flex flex-wrap gap-2">
+                    {displayList.filter(d => selectedDrugIds.includes(d.id)).map(drug => (
+                        <button
+                        key={drug.id}
+                        onClick={() => toggleDrug(drug.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-2 bg-blue-600 text-white border-blue-600 shadow-md transform scale-105`}
+                        >
+                        <CheckCircle2 className="w-3 h-3" />
+                        {drug.ingredient}
+                        </button>
+                    ))}
+                    </div>
+                </div>
+
+                {/* WARNING ALERTS (Conditional) */}
+                {activeCategory.includes('Kombinasyon') && (
+                    <div className="max-w-6xl mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+                    <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+                    <div>
+                        <h3 className="font-semibold text-amber-800 text-sm">Diüretik Uyarısı</h3>
+                        <p className="text-xs text-amber-700 mt-1">
+                        "Plus", "Comp" veya "Kombo" (Diüretikli) ilaçlar anürik diyaliz hastasında etkisizdir ve önerilmez. 
+                        Sadece "Duo" veya "KKB Kombinasyonlu" formları tercih ediniz.
+                        </p>
+                    </div>
+                    </div>
+                )}
+
+                {/* CARDS GRID */}
+                <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayList.map(drug => (
+                    <div 
+                        key={drug.id} 
+                        className={`bg-white rounded-xl border shadow-sm transition-all duration-300 hover:shadow-md flex flex-col ${
+                        selectedDrugIds.includes(drug.id) ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/10' : 'border-slate-200'
+                        }`}
+                    >
+                        {/* Card Header */}
+                        <div className="p-4 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{drug.group}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getDialysisBadge(drug.dialysis)}`}>
+                            DİYALİZ: {drug.dialysis}
+                            </span>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">{drug.ingredient}</h3>
+                        <p className="text-sm text-blue-600 font-medium mt-1">{drug.brands}</p>
+                        </div>
+
+                        {/* Card Body */}
+                        <div className="p-4 space-y-4 flex-grow">
+                        
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 uppercase">Piyasa Dozları</span>
+                            <span className="font-medium text-slate-700">{drug.doses}</span>
+                            </div>
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 uppercase">Max. Diyaliz Dozu</span>
+                            <span className="font-medium text-slate-700">{drug.maxDose}</span>
+                            </div>
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 uppercase">Yarılanma Ömrü</span>
+                            <span className="font-medium text-slate-700">{drug.halfLife}</span>
+                            </div>
+                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                            <span className="block text-[10px] text-slate-400 uppercase">Aktif Metabolit</span>
+                            <span className="font-medium text-slate-700 truncate" title={drug.activeMetabolite}>{drug.activeMetabolite}</span>
+                            </div>
+                        </div>
+
+                        {/* Strategy Section */}
+                        <div className="mt-2">
+                            <div className="flex items-center gap-2 mb-1">
+                            <Clock className="w-4 h-4 text-emerald-600" />
+                            <span className="text-xs font-bold text-slate-500 uppercase">Doz Yönetimi & Strateji</span>
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed bg-emerald-50/50 p-2 rounded border border-emerald-100">
+                            {drug.strategy}
+                            </p>
+                        </div>
+
+                        {/* Specific Warning */}
+                        {drug.warning && (
+                            <div className="flex gap-2 items-start bg-red-50 p-2 rounded border border-red-100">
+                            <Info className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-700">{drug.warning}</p>
+                            </div>
+                        )}
+                        </div>
+
+                        {/* Card Footer (Selection Toggle) */}
+                        <div className="p-3 border-t border-slate-100 bg-slate-50 rounded-b-xl flex justify-end">
+                        <button 
+                            onClick={() => toggleDrug(drug.id)}
+                            className={`text-xs font-medium px-3 py-1.5 rounded transition-colors ${
+                            selectedDrugIds.includes(drug.id)
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+                            }`}
+                        >
+                            {selectedDrugIds.includes(drug.id) ? 'Seçildi' : 'Seç'}
+                        </button>
+                        </div>
+
+                    </div>
+                    ))}
+
+                    {displayList.length === 0 && (
+                    <div className="col-span-full text-center py-12 text-slate-400">
+                        <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p>Aradığınız kriterlere uygun ilaç bulunamadı.</p>
+                    </div>
+                    )}
+                </div>
+
+                <div className="max-w-6xl mx-auto mt-12 text-center text-xs text-slate-400 pb-8">
+                    <p>Veriler Türkiye İlaç ve Tıbbi Cihaz Kurumu ve güncel nefroloji kılavuzlarına dayanmaktadır.</p>
+                    <p>Bu uygulama sadece sağlık profesyonellerine bilgi amaçlıdır, tedavi tavsiyesi yerine geçmez.</p>
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
